@@ -229,26 +229,33 @@
         else if (currentTab === 'dept') renderDept(app);
     }
 
-    function renderCalendar(container, y, m) {
-        let html = `<div class="cal-container"><div class="cal-grid">`;
-        ['일','월','화','수','목','금','토'].forEach((d,i) => html += `<div class="cal-day-head ${i==0?'sun':i==6?'sat':''}">${d}</div>`);
+    function renderCalendar(c) {
+        const y = viewDate.getFullYear(), m = viewDate.getMonth();
+        const now = new Date(); // 오늘 날짜 객체 생성
+
+        let html = `<div class="calendar-legend no-print">${FIXED_DEPTS.map(d => `<div class="legend-item"><div class="legend-dot" style="background:${deptColors[d]}"></div>${d}</div>`).join('')}</div><div class="month-selector no-print"><button class="btn" onclick="changeMonth(-1)">◀ 이전</button><div class="month-title">${y}년 ${m + 1}월</div><button class="btn" onclick="changeMonth(1)">다음 ▶</button></div><div class="calendar-wrapper"><div class="calendar-grid">${['월','화','수','목','금'].map(d => `<div class="cal-head">${d}</div>`).join('')}`;
+    
+        const firstDay = new Date(y, m, 1), lastDay = new Date(y, m + 1, 0);
+        let curr = new Date(firstDay);
+        let diff = curr.getDay() - 1; if(diff === -1) diff = 6;
+        curr.setDate(curr.getDate() - diff);
+
+        for(let i=0; i<35; i++) {
+            const dStr = curr.toISOString().split('T')[0];
+            const isThisMonth = curr.getMonth() === m;
         
-        const first = new Date(y, m, 1), last = new Date(y, m + 1, 0);
-        const startDay = first.getDay();
-        const prevLast = new Date(y, m, 0).getDate();
-        
-        for(let i=startDay-1; i>=0; i--) html += `<div class="cal-date-cell other">${prevLast-i}</div>`;
-        for(let d=1; d<=last.getDate(); d++) {
-            const cur = new Date(y, m, d), dISO = cur.toISOString().split('T')[0];
-            const hasEv = scheduleData.some(s => s.date.toISOString().split('T')[0] === dISO);
-            const isToday = dISO === new Date().toISOString().split('T')[0];
-            const isSel = dISO === selectedDateStr;
-            const cls = `${cur.getDay()==0?'sun':cur.getDay()==6?'sat':''} ${isToday?'today':''} ${hasEv?'has-event':''} ${isSel?'selected':''}`;
-            html += `<div class="cal-date-cell ${cls}" onclick="selectDate('${dISO}')">${d}</div>`;
+        // 중요: 시간 정보를 제외하고 날짜만 비교 (오늘 하이라이트 로직)
+            const isToday = curr.getFullYear() === now.getFullYear() && 
+                            curr.getMonth() === now.getMonth() && 
+                            curr.getDate() === now.getDate();
+
+            if(curr.getDay() !== 0 && curr.getDay() !== 6) {
+                const dayData = scheduleData.find(x => x.date.toISOString().split('T')[0] === dStr);
+                html += `<div class="cal-cell ${!isThisMonth ? 'other-month' : ''} ${isToday ? 'today' : ''}"><div class="cal-date">${curr.getDate()}</div>${dayData ? dayData.events.map(e => `<div class="cal-ev" style="background:${deptColors[e.dept]}" onclick="goDept('${e.dept}')">${e.text}</div>`).join('') : ''}</div>`;
+            }
+            curr.setDate(curr.getDate() + 1); if(curr > lastDay && curr.getDay() === 1) break;
         }
-        html += `</div></div><div id="dayDetail" class="day-detail"></div>`;
-        container.innerHTML = html;
-        renderDayDetail();
+        c.innerHTML = html + `</div></div>`;
     }
 
     window.selectDate = (iso) => {
